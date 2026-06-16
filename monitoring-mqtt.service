@@ -1,0 +1,20 @@
+[Unit]
+Description=Monitoring MQTT Listener (Frigate -> Django)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=norbi
+WorkingDirectory=/opt/monitoring/django
+Environment=DJANGO_SETTINGS_MODULE=monitoring_site.settings
+ExecStartPre=/bin/bash -c 'until docker inspect -f "{{.State.Running}}" frigate 2>/dev/null | grep -q true; do echo "Czekam na Frigate..."; sleep 5; done'
+ExecStartPre=/bin/bash -c 'until docker inspect -f "{{.State.Running}}" mqtt 2>/dev/null | grep -q true; do echo "Czekam na MQTT..."; sleep 5; done'
+ExecStart=/opt/monitoring/django/venv/bin/python manage.py mqtt_listener
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

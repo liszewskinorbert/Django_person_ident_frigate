@@ -1,0 +1,16 @@
+[Unit]
+Description=Monitoring Django Web Server
+After=network.target docker.service monitoring-mqtt.service
+
+[Service]
+Type=simple
+User=norbi
+WorkingDirectory=/opt/monitoring/django
+ExecStart=/opt/monitoring/django/venv/bin/python manage.py runserver 0.0.0.0:8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
