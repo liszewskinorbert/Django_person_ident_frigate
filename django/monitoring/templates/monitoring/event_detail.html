@@ -1,0 +1,128 @@
+{% extends "monitoring/base.html" %}
+{% block title %}Zdarzenie #{{ event.pk }} — Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="flex items-center gap-8">
+    <a href="{% url 'monitoring:event_list' %}" class="btn btn-outline btn-sm">&larr; Wróć</a>
+    <h1 class="page-title">Zdarzenie #{{ event.pk }}</h1>
+    {% if event.false_alarm %}<span class="badge badge-fa">Fałszywy alarm</span>
+    {% elif event.reviewed %}<span class="badge badge-ok">Przejrzane</span>
+    {% else %}<span class="badge badge-new">Nowe</span>{% endif %}
+  </div>
+
+  <div class="flex gap-8">
+    <form method="post" style="display:inline;">{% csrf_token %}
+      {% if not event.reviewed %}
+      <button name="action" value="mark_reviewed" class="btn btn-success btn-sm">✓ Oznacz jako przejrzane</button>
+      {% endif %}
+      {% if not event.false_alarm %}
+      <button name="action" value="mark_false_alarm" class="btn btn-danger btn-sm">✗ Fałszywy alarm</button>
+      {% endif %}
+      {% if event.reviewed or event.false_alarm %}
+      <button name="action" value="mark_unreviewed" class="btn btn-outline btn-sm">↺ Cofnij status</button>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Lewa kolumna: informacje -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-title">Informacje o zdarzeniu</div>
+      <table>
+        <tbody>
+          <tr><td class="text-muted" style="width:140px;">ID Frigate</td><td><code style="font-family:monospace;font-size:12px;">{{ event.frigate_event_id }}</code></td></tr>
+          <tr><td class="text-muted">Kamera</td><td>{{ event.camera_name }}</td></tr>
+          <tr><td class="text-muted">Typ obiektu</td><td><span class="badge badge-warn">{{ event.label }}</span></td></tr>
+          <tr><td class="text-muted">Pewność</td><td>
+            {% if event.top_score %}
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;max-width:120px;">
+                <div style="width:{% widthratio event.top_score 1 100 %}%;height:6px;border-radius:4px;background:var(--accent);"></div>
+              </div>
+              {% widthratio event.top_score 1 100 %}%
+            </div>
+            {% else %}—{% endif %}
+          </td></tr>
+          <tr><td class="text-muted">Rozpoczęcie</td><td>{{ event.started_at|date:"Y-m-d H:i:s" }}</td></tr>
+          <tr><td class="text-muted">Zakończenie</td><td>{% if event.ended_at %}{{ event.ended_at|date:"Y-m-d H:i:s" }}{% else %}<span class="text-muted">—</span>{% endif %}</td></tr>
+          <tr><td class="text-muted">Opis</td><td>{{ event.simple_description|default:"—" }}</td></tr>
+          {% if event.ai_description %}
+          <tr><td class="text-muted">AI</td><td>{{ event.ai_description }}</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if event.has_snapshot and event.snapshot_url %}
+    <div class="card">
+      <div class="card-title">Zdjęcie (snapshot)</div>
+      <a href="/media/{{ event.snapshot_url }}" target="_blank">
+        <img src="/media/{{ event.snapshot_url }}" alt="snapshot"
+             style="width:100%;border-radius:6px;object-fit:contain;max-height:320px;background:#000;">
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Prawa kolumna: wideo -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="card">
+      <div class="card-title">Nagranie wideo</div>
+
+      {% if frigate_clip %}
+      <div style="margin-bottom:12px;">
+        <div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Klip z Frigate API</div>
+        <video controls preload="metadata">
+          <source src="{{ frigate_clip }}" type="video/mp4">
+          Twoja przeglądarka nie obsługuje odtwarzania wideo.
+        </video>
+      </div>
+      {% endif %}
+
+      {% if disk_clips %}
+      <div>
+        <div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
+          Nagrania z dysku ({{ disk_clips|length }})
+        </div>
+        {% for clip_url in disk_clips %}
+        <div style="margin-bottom:12px;">
+          <div class="text-muted" style="font-size:11px;margin-bottom:4px;">{{ clip_url|slice:"20:" }}</div>
+          <video controls preload="metadata">
+            <source src="{{ clip_url }}" type="video/mp4">
+          </video>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if not frigate_clip and not disk_clips %}
+      <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;opacity:.4;">
+          <path d="m15 10 4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14M5 18h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/>
+          <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor"/>
+        </svg>
+        <p style="font-size:13px;">Brak nagrania dla tego zdarzenia.</p>
+        <p style="font-size:12px;margin-top:4px;">
+          Szukano w: <code style="font-size:11px;">{{ event.started_at|date:"Y-m-d" }}/{{ event.started_at|date:"H" }}/</code>
+        </p>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if event.has_clip %}
+    <div class="card">
+      <div class="card-title">Linki do klipu</div>
+      {% if event.clip_url %}
+      <p style="font-size:12px;color:var(--text-muted);word-break:break-all;">{{ event.clip_url }}</p>
+      <a href="{{ event.clip_url }}" target="_blank" class="btn btn-outline btn-sm mt-16">Otwórz zewnętrznie</a>
+      {% else %}
+      <p class="text-muted" style="font-size:13px;">Brak URL klipu w bazie danych.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
