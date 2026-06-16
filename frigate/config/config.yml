@@ -1,0 +1,86 @@
+# /opt/monitoring/frigate/config/config.yml
+#
+# Konfiguracja MVP dla jednej kamery (test_camera).
+# Dane logowania do kamery wczytywane są ze zmiennych środowiskowych
+# FRIGATE_RTSP_USER / FRIGATE_RTSP_PASSWORD (plik .env w katalogu projektu),
+# żeby nie trzymać hasła w pliku konfiguracyjnym.
+
+mqtt:
+  enabled: true
+  host: mqtt
+  port: 1883
+  topic_prefix: frigate
+  client_id: frigate
+
+# ffmpeg: brak hwaccel_args - dekodowanie programowe (CPU).
+# Dla substreamu 640x360@5fps to pomijalne obciazenie, a dziala
+# na każdej maszynie (bez wzgledu na iGPU/VAAPI).
+
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3   # liczba wątków detekcji; dostosuj do liczby rdzeni CPU
+
+# Brak sekcji `model` - detektor "cpu" uzywa wbudowanego domyslnego
+# modelu (mobiledet, tflite). Sekcja model/openvino-model nie jest
+# potrzebna i zostala usunieta.
+
+
+# --------------------------------------------------------------------
+# go2rtc - dwa strumienie z kamery: main (nagrywanie) i sub (detekcja)
+# Podstaw rzeczywisty adres IP kamery oraz dane logowania w .env
+# --------------------------------------------------------------------
+go2rtc:
+  streams:
+    test_main:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.0.222:554/unicast/c1/s0/live
+    test_sub:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@192.168.0.222:554/unicast/c1/s1/live
+
+cameras:
+  test_camera:
+    enabled: true
+
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/test_sub
+          roles:
+            - detect
+
+        - path: rtsp://127.0.0.1:8554/test_main
+          roles:
+            - record
+
+    detect:
+      enabled: true
+      width: 640
+      height: 360
+      fps: 5
+
+    objects:
+      track:
+        - person
+        - car
+        - dog
+        - cat
+
+    snapshots:
+      enabled: true
+      timestamp: true
+      bounding_box: true
+      retain:
+        default: 7
+
+    record:
+      enabled: true
+      alerts:
+        retain:
+          days: 7
+      detections:
+        retain:
+          days: 7
+      continuous:
+        days: 0
+      motion:
+        days: 3
+version: 0.17-0
