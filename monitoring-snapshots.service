@@ -1,0 +1,17 @@
+[Unit]
+Description=Monitoring Snapshot Fetcher
+After=network.target monitoring-mqtt.service
+Wants=monitoring-mqtt.service
+
+[Service]
+Type=simple
+User=norbi
+WorkingDirectory=/opt/monitoring/django
+ExecStart=/opt/monitoring/django/venv/bin/python manage.py snapshot_fetcher
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

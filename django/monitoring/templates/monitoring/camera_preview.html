@@ -1,0 +1,73 @@
+{% extends "monitoring/base.html" %}
+{% load monitoring_extras %}
+{% block title %}Kamery — Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Podgląd kamer</h1>
+  <span class="text-muted" style="font-size:13px;">{{ cameras|length }} kamera(-y)</span>
+</div>
+
+{% if cameras %}
+<div class="grid-2">
+  {% for cam in cameras %}
+  <div class="card">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>{{ cam }}</span>
+      {% with ev=latest|dict_get:cam %}
+      {% if ev %}
+      <span class="badge badge-new" style="font-size:10px;">ostatnie: {{ ev.started_at|timesince }} temu</span>
+      {% endif %}
+      {% endwith %}
+    </div>
+
+    <!-- Obraz live z Frigate MJPEG -->
+    <div style="background:#000;border-radius:6px;overflow:hidden;position:relative;margin-bottom:12px;">
+      <img src="{{ frigate_url }}/api/{{ cam }}/latest.jpg"
+           alt="Podgląd {{ cam }}"
+           style="width:100%;display:block;object-fit:contain;max-height:280px;"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div style="display:none;align-items:center;justify-content:center;height:200px;color:var(--text-muted);flex-direction:column;gap:8px;">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.4;">
+          <path d="m15 10 4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14M5 18h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/>
+        </svg>
+        <span style="font-size:12px;">Brak połączenia z kamerą</span>
+      </div>
+    </div>
+
+    <!-- Ostatnie zdarzenie -->
+    {% with ev=latest|dict_get:cam %}
+    {% if ev %}
+    <div style="display:flex;align-items:center;gap:12px;">
+      {% if ev.thumbnail_url %}
+      <a href="{% url 'monitoring:event_detail' ev.pk %}">
+        <img src="{{ ev.thumbnail_url }}" alt="last event" style="height:50px;width:auto;border-radius:4px;object-fit:cover;">
+      </a>
+      {% endif %}
+      <div>
+        <div style="font-size:12px;color:var(--text-muted);">Ostatnie zdarzenie</div>
+        <div style="font-size:13px;">
+          <span class="badge badge-warn" style="margin-right:4px;">{{ ev.label }}</span>
+          {{ ev.started_at|date:"Y-m-d H:i" }}
+        </div>
+        <a href="{% url 'monitoring:event_detail' ev.pk %}" class="btn btn-outline btn-sm" style="margin-top:6px;">Szczegóły</a>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:12px;">Brak zdarzeń dla tej kamery.</p>
+    {% endif %}
+    {% endwith %}
+
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <a href="{{ frigate_url }}" target="_blank" class="btn btn-outline btn-sm">Panel Frigate</a>
+      <a href="{% url 'monitoring:event_list' %}?camera={{ cam }}" class="btn btn-outline btn-sm">Historia zdarzeń</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:48px 20px;">
+  <p class="text-muted">Brak zarejestrowanych kamer. Zdarzenia pojawią się po uruchomieniu nasłuchu MQTT.</p>
+</div>
+{% endif %}
+{% endblock %}

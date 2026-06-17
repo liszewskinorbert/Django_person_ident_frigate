@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logowanie — System Monitoringu</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2e3350;
+      --accent: #4f8ef7; --text: #e2e6f0; --text-muted: #7a82a0;
+      --danger: #e05c5c; --radius: 8px;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+    .login-wrap { width: 100%; max-width: 360px; padding: 16px; }
+
+    .login-logo { text-align: center; margin-bottom: 32px; }
+    .login-logo svg { color: var(--accent); }
+    .login-logo h1 { font-size: 22px; font-weight: 700; margin-top: 12px; }
+    .login-logo p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    input[type=text], input[type=password] {
+      background: #0f1117;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      outline: none;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .btn-login {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity .15s;
+    }
+    .btn-login:hover { opacity: .9; }
+
+    .error-list { list-style: none; margin-bottom: 16px; }
+    .error-list li {
+      background: rgba(224,92,92,.15);
+      border: 1px solid rgba(224,92,92,.3);
+      color: var(--danger);
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-logo">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="m15 10 4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14M5 18h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/>
+    </svg>
+    <h1>System Monitoringu</h1>
+    <p>Zaloguj się, aby kontynuować</p>
+  </div>
+
+  <div class="login-card">
+    {% if form.errors %}
+    <ul class="error-list">
+      {% for field in form %}{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+      {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="id_username">Użytkownik</label>
+        <input type="text" id="id_username" name="username" autofocus autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="id_password">Hasło</label>
+        <input type="password" id="id_password" name="password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login">Zaloguj się</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

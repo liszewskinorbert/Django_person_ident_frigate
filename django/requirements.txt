@@ -1,0 +1,4 @@
+Django>=4.2,<5.1
+paho-mqtt>=1.6,<2.0
+opencv-python-headless>=4.9
+requests>=2.31

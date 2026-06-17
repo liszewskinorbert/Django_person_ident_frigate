@@ -1,0 +1,199 @@
+{% extends "monitoring/base.html" %}
+{% block title %}Zdarzenia — Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Dziennik zdarzeń</h1>
+  <span class="text-muted" style="font-size:13px;">Łącznie: {{ total_count }}</span>
+</div>
+
+<!-- Filtry -->
+<div class="card" style="margin-bottom:16px;">
+  <form method="get">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Kamera</label>
+        <select name="camera">
+          <option value="">Wszystkie</option>
+          {% for cam in cameras %}
+          <option value="{{ cam }}" {% if filters.camera == cam %}selected{% endif %}>{{ cam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Typ obiektu</label>
+        <select name="label">
+          <option value="">Wszystkie</option>
+          {% for lbl in labels %}
+          <option value="{{ lbl }}" {% if filters.label == lbl %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Data od</label>
+        <input type="date" name="date_from" value="{{ filters.date_from }}">
+      </div>
+
+      <div class="form-group">
+        <label>Data do</label>
+        <input type="date" name="date_to" value="{{ filters.date_to }}">
+      </div>
+
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          <option value="">Wszystkie</option>
+          <option value="unreviewed" {% if filters.status == "unreviewed" %}selected{% endif %}>Nowe</option>
+          <option value="reviewed" {% if filters.status == "reviewed" %}selected{% endif %}>Przejrzane</option>
+          <option value="false_alarm" {% if filters.status == "false_alarm" %}selected{% endif %}>Fałszywy alarm</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="justify-content:flex-end;gap:10px;flex-direction:row;align-items:flex-end;">
+        <label class="checkbox-label">
+          <input type="checkbox" name="has_snapshot" value="1" {% if filters.has_snapshot == "1" %}checked{% endif %}>
+          Snapshot
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" name="has_clip" value="1" {% if filters.has_clip == "1" %}checked{% endif %}>
+          Klip
+        </label>
+      </div>
+
+      <div class="form-group" style="justify-content:flex-end;flex-direction:row;align-items:flex-end;gap:8px;">
+        <button type="submit" class="btn btn-primary">Filtruj</button>
+        <a href="{% url 'monitoring:event_list' %}" class="btn btn-outline">Resetuj</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Tabela -->
+<div class="card">
+  {% if page_obj.object_list %}
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Data i godzina</th>
+          <th>Kamera</th>
+          <th>Typ</th>
+          <th>Pewność</th>
+          <th>Miniatura</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in page_obj %}
+        <tr>
+          <td style="white-space:nowrap;">
+            <div>{{ event.started_at|date:"Y-m-d" }}</div>
+            <div class="text-muted">{{ event.started_at|date:"H:i:s" }}</div>
+          </td>
+          <td>{{ event.camera_name }}</td>
+          <td><span class="badge badge-warn">{{ event.label }}</span></td>
+          <td>
+            {% if event.top_score %}{% widthratio event.top_score 1 100 %}%{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>
+            {% if event.thumbnail_url %}
+            <img src="/media/{{ event.thumbnail_url }}" alt="thumb"
+                 style="height:56px;width:auto;border-radius:6px;object-fit:cover;cursor:pointer;display:block;"
+                 onclick="window.location='{% url 'monitoring:event_detail' event.pk %}'">
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td id="status-{{ event.pk }}">
+            {% if event.false_alarm %}<span class="badge badge-fa">Fałszywy alarm</span>
+            {% elif event.reviewed %}<span class="badge badge-ok">Przejrzane</span>
+            {% else %}<span class="badge badge-new">Nowe</span>{% endif %}
+          </td>
+          <td style="white-space:nowrap;">
+            <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+              {% if not event.reviewed and not event.false_alarm %}
+              <button class="btn btn-sm btn-ok" title="Oznacz jako przejrzane"
+                      onclick="markEvent({{ event.pk }},'mark_reviewed',this)">✓</button>
+              <button class="btn btn-sm btn-fa" title="Oznacz jako fałszywy alarm"
+                      onclick="markEvent({{ event.pk }},'mark_false_alarm',this)">✗</button>
+              {% elif event.false_alarm or event.reviewed %}
+              <button class="btn btn-sm btn-outline" title="Cofnij status"
+                      onclick="markEvent({{ event.pk }},'mark_unreviewed',this)">↩</button>
+              {% endif %}
+              <a href="{% url 'monitoring:event_detail' event.pk %}" class="btn btn-outline btn-sm">Szczegóły</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted" style="text-align:center;padding:32px 0;">Brak zdarzeń spełniających kryteria.</p>
+  {% endif %}
+</div>
+
+{% if page_obj.has_other_pages %}
+<div class="pagination mt-16">
+  {% if page_obj.has_previous %}
+  <a href="?{% for k,v in filters.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">&laquo;</a>
+  {% endif %}
+  <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+  <a href="?{% for k,v in filters.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">&raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markEvent(pk, action, btn) {
+  fetch(`/events/${pk}/mark/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': '{{ csrf_token }}',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: `action=${action}`,
+  })
+  .then(r => r.json())
+  .then(data => {
+    const statusCell = document.getElementById(`status-${pk}`);
+    const badges = {
+      reviewed: '<span class="badge badge-ok">Przejrzane</span>',
+      false_alarm: '<span class="badge badge-fa">Fałszywy alarm</span>',
+      new: '<span class="badge badge-new">Nowe</span>',
+    };
+    statusCell.innerHTML = badges[data.status] || '';
+
+    const actionDiv = btn.closest('div');
+    const detailLink = actionDiv.querySelector('a.btn');
+    // Remove old action buttons, keep detail link
+    actionDiv.querySelectorAll('button').forEach(b => b.remove());
+
+    if (data.status === 'new') {
+      const okBtn = Object.assign(document.createElement('button'), {
+        className: 'btn btn-sm btn-ok', title: 'Oznacz jako przejrzane', textContent: '✓',
+        onclick: function() { markEvent(pk, 'mark_reviewed', this); }
+      });
+      const faBtn = Object.assign(document.createElement('button'), {
+        className: 'btn btn-sm btn-fa', title: 'Oznacz jako fałszywy alarm', textContent: '✗',
+        onclick: function() { markEvent(pk, 'mark_false_alarm', this); }
+      });
+      actionDiv.prepend(faBtn);
+      actionDiv.prepend(okBtn);
+    } else {
+      const undoBtn = Object.assign(document.createElement('button'), {
+        className: 'btn btn-sm btn-outline', title: 'Cofnij status', textContent: '↩',
+        onclick: function() { markEvent(pk, 'mark_unreviewed', this); }
+      });
+      actionDiv.prepend(undoBtn);
+    }
+  })
+  .catch(() => alert('Błąd podczas zmiany statusu'));
+}
+</script>
+{% endblock %}
